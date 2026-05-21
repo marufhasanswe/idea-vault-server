@@ -1,6 +1,6 @@
 const express = require("express");
 const dotenv = require("dotenv");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const cors = require("cors");
 dotenv.config();
 const uri = process.env.MONGODB_URI;
@@ -29,10 +29,28 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/ideas/:id", async (req, res) => {
+      const { id } = req.params;
+      if (!ObjectId.isValid(id)) {
+        return res.status(400).send("Invalid ID format");
+      }
+      const result = await ideaCollection.findOne({ _id: new ObjectId(id) });
+      res.send(result);
+    });
+
     app.post("/idea", async (req, res) => {
       const ideaData = req.body;
-      console.log(ideaData);
       const result = await ideaCollection.insertOne(ideaData);
+      res.send(result);
+    });
+
+    app.get("/my-ideas/:uId", async (req, res) => {
+      const { uId } = req.params;
+      const result = await ideaCollection
+        .find({
+          userId: uId,
+        })
+        .toArray();
       res.send(result);
     });
 
