@@ -1,10 +1,13 @@
 const express = require("express");
 const dotenv = require("dotenv");
-dotenv.config();
 const { MongoClient, ServerApiVersion } = require("mongodb");
+const cors = require("cors");
+dotenv.config();
 const uri = process.env.MONGODB_URI;
 const app = express();
-const port = process.env.PORT;
+app.use(cors());
+app.use(express.json());
+const port = process.env.PORT || 5000;
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -21,9 +24,15 @@ async function run() {
     const db = client.db("ideaVault");
     const ideaCollection = db.collection("ideas");
 
-    app.get("/idea", async (req, res) => {
-      console.log("get req success");
+    app.get("/ideas", async (req, res) => {
       const result = await ideaCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.post("/idea", async (req, res) => {
+      const ideaData = req.body;
+      console.log(ideaData);
+      const result = await ideaCollection.insertOne(ideaData);
       res.send(result);
     });
 
