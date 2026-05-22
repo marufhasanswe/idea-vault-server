@@ -154,34 +154,25 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/users/:id", verifyToken, async (req, res) => {
+      const { id } = req.params;
+      const result = await userCollection.findOne({ _id: new ObjectId(id) });
+
+      res.send(result);
+    });
+
     app.patch("/users/:id", verifyToken, async (req, res) => {
-      try {
-        const { id } = req.params;
-        const updatedData = req.body;
+      const { id } = req.params;
+      const updatedData = req.body;
 
-        delete updatedData._id;
-        delete updatedData.email;
-
-        const result = await userCollection.updateOne(
-          { _id: new ObjectId(id) },
-          {
-            $set: updatedData,
-          },
-        );
-
-        res.send({
-          success: true,
-          message: "Profile updated successfully",
-          result,
-        });
-      } catch (error) {
-        console.log(error);
-
-        res.status(500).send({
-          success: false,
-          message: "Failed to update profile",
-        });
-      }
+      console.log(id, updatedData);
+      const result = await userCollection.updateOne(
+        { _id: new ObjectId(id) },
+        {
+          $set: updatedData,
+        },
+      );
+      res.send(result);
     });
 
     // await client.db("admin").command({ ping: 1 });
