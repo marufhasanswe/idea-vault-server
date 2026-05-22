@@ -23,6 +23,7 @@ async function run() {
 
     const db = client.db("ideaVault");
     const ideaCollection = db.collection("ideas");
+    const commentCollection = db.collection("comments");
 
     app.get("/ideas", async (req, res) => {
       const result = await ideaCollection.find().toArray();
@@ -67,6 +68,13 @@ async function run() {
     app.delete("/my-ideas/:id", async (req, res) => {
       const id = req.params;
       const result = await ideaCollection.deleteOne({ _id: new ObjectId(id) });
+      res.send(result);
+    });
+
+    app.post("/comment", async (req, res) => {
+      const commentData = req.body;
+      console.log(commentData);
+      const result = await commentCollection.insertOne(commentData);
       res.send(result);
     });
 
