@@ -71,10 +71,49 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/comment/:ideaId", async (req, res) => {
+      const { ideaId } = req.params;
+      const result = await commentCollection.find({ ideaId: ideaId }).toArray();
+
+      res.send(result);
+    });
+
+    app.get("/my-interactions/:userId", async (req, res) => {
+      const { userId } = req.params;
+      console.log(userId);
+      const result = await commentCollection.find({ userId: userId }).toArray();
+      console.log(result);
+      res.send(result);
+    });
+
     app.post("/comment", async (req, res) => {
       const commentData = req.body;
       console.log(commentData);
       const result = await commentCollection.insertOne(commentData);
+      res.send(result);
+    });
+
+    app.patch("/comment/:id", async (req, res) => {
+      const { id } = req.params;
+      const updatedCommentData = req.body;
+      console.log(id, updatedCommentData);
+      const result = await commentCollection.updateOne(
+        { _id: new ObjectId(id) },
+        {
+          $set: {
+            comment: updatedCommentData.comment,
+            updatedAt: new Date(),
+          },
+        },
+      );
+      res.send(result);
+    });
+
+    app.delete("/comment/:id", async (req, res) => {
+      const { id } = req.params;
+      const result = await commentCollection.deleteOne({
+        _id: new ObjectId(id),
+      });
       res.send(result);
     });
 
