@@ -2,6 +2,7 @@ const express = require("express");
 const dotenv = require("dotenv");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const cors = require("cors");
+const { createRemoteJWKSet, jwtVerify } = require("jose-cjs");
 dotenv.config();
 const uri = process.env.MONGODB_URI;
 const app = express();
@@ -17,6 +18,27 @@ const client = new MongoClient(uri, {
   },
 });
 
+const JWKS = createRemoteJWKSet(new URL("http://localhost:3000/api/auth/jwks"));
+
+const verifyToken = async (req, res, next) => {
+  const authHeader = req?.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, JWKS);
+    console.log(payload);
+    next();
+  } catch (error) {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+};
+
 async function run() {
   try {
     await client.connect();
@@ -24,13 +46,14 @@ async function run() {
     const db = client.db("ideaVault");
     const ideaCollection = db.collection("ideas");
     const commentCollection = db.collection("comments");
+    const userCollection = db.collection("user");
 
-    app.get("/ideas", async (req, res) => {
+    app.get("/ideas", verifyToken, async (req, res) => {
       const result = await ideaCollection.find().toArray();
       res.send(result);
     });
 
-    app.get("/ideas/:id", async (req, res) => {
+    app.get("/ideas/:id", verifyToken, async (req, res) => {
       const { id } = req.params;
       if (!ObjectId.isValid(id)) {
         return res.status(400).send("Invalid ID format");
@@ -45,7 +68,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/my-ideas/:uId", async (req, res) => {
+    app.get("/my-ideas/:uId", verifyToken, async (req, res) => {
       const { uId } = req.params;
       const result = await ideaCollection
         .find({
@@ -55,7 +78,7 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/my-ideas/:id", async (req, res) => {
+    app.patch("/my-ideas/:id", verifyToken, async (req, res) => {
       const { id } = req.params;
       const updatedData = req.body;
       const result = await ideaCollection.updateOne(
@@ -65,20 +88,20 @@ async function run() {
       res.send(result);
     });
 
-    app.delete("/my-ideas/:id", async (req, res) => {
+    app.delete("/my-ideas/:id", verifyToken, async (req, res) => {
       const id = req.params;
       const result = await ideaCollection.deleteOne({ _id: new ObjectId(id) });
       res.send(result);
     });
 
-    app.get("/comment/:ideaId", async (req, res) => {
+    app.get("/comment/:ideaId", verifyToken, async (req, res) => {
       const { ideaId } = req.params;
       const result = await commentCollection.find({ ideaId: ideaId }).toArray();
 
       res.send(result);
     });
 
-    app.get("/my-interactions/:userId", async (req, res) => {
+    app.get("/my-interactions/:userId", verifyToken, async (req, res) => {
       const { userId } = req.params;
       console.log(userId);
       const result = await commentCollection.find({ userId: userId }).toArray();
@@ -86,14 +109,14 @@ async function run() {
       res.send(result);
     });
 
-    app.post("/comment", async (req, res) => {
+    app.post("/comment", verifyToken, async (req, res) => {
       const commentData = req.body;
       console.log(commentData);
       const result = await commentCollection.insertOne(commentData);
       res.send(result);
     });
 
-    app.patch("/comment/:id", async (req, res) => {
+    app.patch("/comment/:id", verifyToken, async (req, res) => {
       const { id } = req.params;
       const updatedCommentData = req.body;
       console.log(id, updatedCommentData);
@@ -115,6 +138,36 @@ async function run() {
         _id: new ObjectId(id),
       });
       res.send(result);
+    });
+
+    app.patch("/users/:id", verifyToken, async (req, res) => {
+      try {
+        const { id } = req.params;
+        const updatedData = req.body;
+
+        delete updatedData._id;
+        delete updatedData.email;
+
+        const result = await userCollection.updateOne(
+          { _id: new ObjectId(id) },
+          {
+            $set: updatedData,
+          },
+        );
+
+        res.send({
+          success: true,
+          message: "Profile updated successfully",
+          result,
+        });
+      } catch (error) {
+        console.log(error);
+
+        res.status(500).send({
+          success: false,
+          message: "Failed to update profile",
+        });
+      }
     });
 
     await client.db("admin").command({ ping: 1 });
