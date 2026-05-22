@@ -18,7 +18,9 @@ const client = new MongoClient(uri, {
   },
 });
 
-const JWKS = createRemoteJWKSet(new URL("http://localhost:3000/api/auth/jwks"));
+const JWKS = createRemoteJWKSet(
+  new URL(`${process.env.CLIENT_URL}/api/auth/jwks`),
+);
 
 const verifyToken = async (req, res, next) => {
   const authHeader = req?.headers.authorization;
@@ -41,15 +43,27 @@ const verifyToken = async (req, res, next) => {
 
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
 
     const db = client.db("ideaVault");
     const ideaCollection = db.collection("ideas");
     const commentCollection = db.collection("comments");
     const userCollection = db.collection("user");
 
-    app.get("/ideas", verifyToken, async (req, res) => {
+    app.get("/ideas", async (req, res) => {
       const result = await ideaCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.get("/trending-ideas", async (req, res) => {
+      const result = await ideaCollection
+        .aggregate([
+          {
+            $limit: 6,
+          },
+        ])
+        .toArray();
+
       res.send(result);
     });
 
@@ -132,7 +146,7 @@ async function run() {
       res.send(result);
     });
 
-    app.delete("/comment/:id", async (req, res) => {
+    app.delete("/comment/:id", verifyToken, async (req, res) => {
       const { id } = req.params;
       const result = await commentCollection.deleteOne({
         _id: new ObjectId(id),
@@ -170,7 +184,7 @@ async function run() {
       }
     });
 
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!",
     );
